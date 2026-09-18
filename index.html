@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Ewidencja IT — Wypożyczalnia laptopów</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>Ewidencja IT</h1>
+    <span class="tag">WYPOŻYCZALNIA LAPTOPÓW</span>
+  </div>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <nav class="switcher" aria-label="Nawigacja główna">
+      <button id="tabPracownik" class="active" type="button">Zgłoś zapotrzebowanie</button>
+      <button id="tabIT" type="button">Panel Działu IT</button>
+    </nav>
+    <div class="notif-wrap">
+      <button id="bellBtn" class="bell-btn" title="Powiadomienia" aria-label="Powiadomienia" aria-haspopup="true" aria-expanded="false" aria-controls="notifDropdown" type="button">
+        🔔
+        <span id="bellBadge" class="bell-badge hidden">0</span>
+      </button>
+      <div id="notifDropdown" class="notif-dropdown hidden">
+        <div class="notif-dropdown-head">
+          <strong>Powiadomienia</strong>
+          <div style="display:flex; gap:12px;">
+            <button id="btnOznaczWszystkie" type="button">Oznacz jako przeczytane</button>
+            <button id="btnWyczyscWszystkie" type="button">Wyczyść</button>
+          </div>
+        </div>
+        <div id="notifLista"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ WIDOK PRACOWNIKA ============ -->
+  <section id="widokPracownik">
+
+    <!-- LOGOWANIE (widoczne, gdy nikt nie jest zalogowany) -->
+    <div id="pracownikAuth">
+      <h2 class="section-title">Zaloguj się</h2>
+      <p class="section-sub">Zaloguj się na swoje konto pracownicze, żeby zgłosić zapotrzebowanie na laptop. Konta zakłada wyłącznie Dział IT.</p>
+      <div class="panel" style="max-width:460px;">
+        <h3>Logowanie</h3>
+        <form id="formLoginPracownik" onsubmit="event.preventDefault(); document.getElementById('btnZaloguj').click();">
+          <div class="field">
+            <label for="log_email">E-mail</label>
+            <input type="email" id="log_email" autocomplete="username" placeholder="np. a.kowalska@firma.pl" required>
+          </div>
+          <div class="field">
+            <label for="log_haslo">Hasło</label>
+            <input type="password" id="log_haslo" autocomplete="current-password" placeholder="Wprowadź hasło" required>
+          </div>
+          <div id="logowanieBlad" class="alert alert-danger hidden">Nieprawidłowy e-mail lub hasło.</div>
+          <button id="btnZaloguj" type="submit" class="btn btn-primary">Zaloguj się</button>
+        </form>
+        <p style="color:var(--steel); font-size:12.5px; margin:12px 0 0;">Nie masz jeszcze konta? Poproś Dział IT o jego założenie.</p>
+      </div>
+    </div>
+
+    <!-- WIDOK PO ZALOGOWANIU -->
+    <div id="pracownikZalogowany" class="hidden">
+
+      <div class="panel account-bar">
+        <div>
+          <strong id="zalogowanyImie"></strong>
+          <div class="mono account-meta" id="zalogowanyDane"></div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="btnPokazZmianeHaslaPracownik" type="button" class="btn btn-outline btn-small">Zmień hasło</button>
+          <button id="btnWylogujPracownik" type="button" class="btn btn-outline btn-small">Wyloguj się</button>
+        </div>
+      </div>
+
+      <div id="zmianaHaslaPracownikPanel" class="panel hidden">
+  <h3>Zmień hasło</h3>
+  <form id="formHasloPracownik" onsubmit="event.preventDefault(); document.getElementById('btnZmienHasloPracownik').click();">
+    <div class="field">
+      <label for="zh_p_obecne">Obecne hasło</label>
+      <input type="password" id="zh_p_obecne" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="zh_p_nowe">Nowe hasło (min. 8 znaków, duża litera, cyfra)</label>
+      <input type="password" id="zh_p_nowe" minlength="8" autocomplete="new-password" required>
+      <div id="zh_p_sila_pasek" style="height:4px; width:0%; background:#e0e0e0; margin-top:6px; border-radius:2px; transition:0.3s;"></div>
+      <small id="zh_p_sila_tekst" style="font-size:11.5px; color:var(--steel); display:block; margin-top:3px;"></small>
+    </div>
+    <div class="field">
+      <label for="zh_p_powtorz">Powtórz nowe hasło</label>
+      <input type="password" id="zh_p_powtorz" minlength="8" autocomplete="new-password" required>
+    </div>
+    <div id="zh_p_blad" class="alert alert-danger hidden"></div>
+    <button id="btnZmienHasloPracownik" type="submit" class="btn btn-primary btn-small">Zapisz nowe hasło</button>
+  </form>
+</div>
+
+      <h2 class="section-title">Zgłoś zapotrzebowanie na laptop</h2>
+      <p class="section-sub">Wskaż zakres dat, w którym potrzebujesz sprzętu. Rezerwujesz dostępność — konkretny egzemplarz przypisze technik IT przy wydaniu.</p>
+
+      <div id="aktywnaRezerwacjaPanel" class="hidden">
+        <div class="panel">
+          <h3>Twoja aktywna rezerwacja</h3>
+          <div id="aktywnaRezerwacjaTresc"></div>
+        </div>
+
+        <div id="panelProsbaPrzedluzenia" class="panel hidden">
+          <h3>Poproś o przedłużenie</h3>
+          <div class="field">
+            <label for="pr_nowaDataDo">Nowa data zwrotu</label>
+            <input type="date" id="pr_nowaDataDo">
+          </div>
+          <div id="pr_uzasadnienieBlok" class="field hidden">
+            <label for="pr_uzasadnienie">Uzasadnienie (rezerwacja przekroczy 7 dni łącznie)</label>
+            <textarea id="pr_uzasadnienie" placeholder="Wyjaśnij, dlaczego potrzebujesz dłuższego terminu"></textarea>
+          </div>
+          <button id="btnPoprosPrzedluzenie" type="button" class="btn btn-outline">Wyślij prośbę o przedłużenie</button>
+        </div>
+      </div>
+
+      <div id="noweZgloszenieBlok">
+        <div class="panel">
+          <h3>Nowe zgłoszenie</h3>
+          <form id="formZgloszenie">
+            <div class="grid2">
+              <div class="field">
+                <label for="p_od">Data od</label>
+                <input type="date" id="p_od" required>
+              </div>
+              <div class="field">
+                <label for="p_do">Data do</label>
+                <input type="date" id="p_do" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="p_cel">Cel wypożyczenia</label>
+              <input type="text" id="p_cel" required placeholder="np. wyjazd służbowy">
+            </div>
+            <div id="p_uzasadnienieBlok" class="field hidden">
+              <label for="p_uzasadnienie">Uzasadnienie (rezerwacja dłuższa niż 7 dni)</label>
+              <textarea id="p_uzasadnienie" placeholder="Wyjaśnij, dlaczego potrzebujesz laptopa na dłużej niż 7 dni"></textarea>
+            </div>
+            <div id="dostepnoscPodglad"></div>
+            <button type="submit" class="btn btn-primary">Wyślij zgłoszenie</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h3>Dostępność w wybranym zakresie</h3>
+          <div id="listaDostepnosci"><p class="empty">Wybierz zakres dat powyżej, aby zobaczyć liczbę wolnych laptopów w poszczególnych dniach.</p></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ WIDOK IT ============ -->
+  <section id="widokIT" class="hidden">
+
+    <div id="itGate" class="gate">
+      <div class="panel">
+        <h3>Dostęp dla Działu IT</h3>
+        <form id="formLoginIT" onsubmit="event.preventDefault(); document.getElementById('btnItLogin').click();">
+          <div class="field">
+            <label for="it_email">E-mail</label>
+            <input type="email" id="it_email" autocomplete="username" placeholder="np. admin@hexonic.com" required>
+          </div>
+          <div class="field">
+            <label for="it_haslo">Hasło</label>
+            <input type="password" id="it_haslo" autocomplete="current-password" placeholder="Wprowadź hasło" required>
+          </div>
+          <div id="itLoginError" class="alert alert-danger hidden">Nieprawidłowy e-mail, hasło, albo konto bez uprawnień administratora.</div>
+          <button id="btnItLogin" type="submit" class="btn btn-dark">Zaloguj się</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="itPanel" class="hidden">
+      <h2 class="section-title">Panel Działu IT</h2>
+      <p class="section-sub">Zarządzaj sprzętem i wnioskami o wypożyczenie.</p>
+
+      <div class="subtabs" role="tablist">
+        <button id="subtabWnioski" class="active" type="button" role="tab">Wnioski</button>
+        <button id="subtabSprzet" type="button" role="tab">Sprzęt</button>
+        <button id="subtabPracownicy" type="button" role="tab">Pracownicy</button>
+        <button id="subtabPowiadomienia" type="button" role="tab">Powiadomienia</button>
+      </div>
+
+      <div id="itWnioski">
+        <div id="alertKonflikty"></div>
+        <div class="panel">
+          <h3>Lista wniosków</h3>
+          <div style="overflow-x:auto;">
+            <table class="data" id="tabelaWnioski">
+              <thead>
+                <tr>
+                  <th>Zgłaszający</th>
+                  <th>Dział</th>
+                  <th>Termin</th>
+                  <th>Cel</th>
+                  <th>Status</th>
+                  <th>Laptop</th>
+                  <th>Akcje</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="itSprzet" class="hidden">
+        <div class="panel">
+          <h3>Dodaj laptop</h3>
+          <form id="formDodajSprzet" onsubmit="event.preventDefault(); document.getElementById('btnDodajSprzet').click();">
+            <div class="grid2">
+              <div class="field">
+                <label for="s_id">Nr inwentarzowy</label>
+                <input type="text" id="s_id" placeholder="np. L0006" required>
+              </div>
+              <div class="field">
+                <label for="s_model">Model</label>
+                <input type="text" id="s_model" placeholder="np. Dell Latitude 5440" required>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="s_sn">Numer seryjny (S/N)</label>
+                <input type="text" id="s_sn" placeholder="np. SN-88213">
+              </div>
+              <div class="field">
+                <label for="s_status">Status</label>
+                <select id="s_status">
+                  <option value="Dostępny">Dostępny</option>
+                  <option value="Wypożyczony">Wypożyczony</option>
+                  <option value="W naprawie">W naprawie / Wyłączony</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="s_notatki">Notatki</label>
+              <textarea id="s_notatki" placeholder="Uwagi o stanie technicznym"></textarea>
+            </div>
+            <button id="btnDodajSprzet" type="submit" class="btn btn-primary">Dodaj do ewidencji</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h3>Ewidencja sprzętu</h3>
+          <div style="overflow-x:auto;">
+            <table class="data" id="tabelaSprzet">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Model</th>
+                  <th>S/N</th>
+                  <th>Status</th>
+                  <th>Notatki</th>
+                  <th>Akcje</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="itPowiadomienia" class="hidden">
+        <div class="panel">
+          <h3>Skrzynka powiadomień — jak to działa</h3>
+          <p style="color:var(--steel); font-size:13.5px; margin:0;">Powiadomienie pojawia się w dzwonku (🔔) w pasku górnym, gdy wypożyczenie danego laptopa wygasa jutro, dzisiaj, oraz codziennie, dopóki jest przeterminowane i laptop nie zostanie zwrócony. Admin widzi powiadomienia o wszystkich pracownikach; pracownik widzi tylko swoje.</p>
+        </div>
+      </div>
+
+      <div id="itPracownicy" class="hidden">
+        <div class="panel">
+          <h3>Załóż konto pracownicze</h3>
+          <form id="formDodajKonto" onsubmit="event.preventDefault(); document.getElementById('btnDodajKonto').click();">
+            <div class="grid2">
+              <div class="field">
+                <label for="k_imie">Imię i nazwisko</label>
+                <input type="text" id="k_imie" placeholder="np. Anna Kowalska" required>
+              </div>
+              <div class="field">
+                <label for="k_dzial">Dział</label>
+                <input type="text" id="k_dzial" placeholder="np. Księgowość" required>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="k_email">E-mail</label>
+                <input type="email" id="k_email" autocomplete="off" placeholder="np. a.kowalska@firma.pl" required>
+              </div>
+              <div class="field">
+                <label for="k_haslo">Hasło startowe (min. 8 znaków)</label>
+                <input type="text" id="k_haslo" minlength="8" autocomplete="off" placeholder="np. BezpieczneHaslo123" required>
+              </div>
+            </div>
+            <div id="kontoBlad" class="alert alert-danger hidden"></div>
+            <button id="btnDodajKonto" type="submit" class="btn btn-primary">Załóż konto</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h3>Lista kont pracowniczych</h3>
+          <div style="overflow-x:auto;">
+            <table class="data" id="tabelaKonta">
+              <thead>
+                <tr>
+                  <th>Imię i nazwisko</th>
+                  <th>Dział</th>
+                  <th>E-mail</th>
+                  <th>Akcje</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <button id="btnWyloguj" type="button" class="btn btn-outline btn-small" style="margin-top:10px;">Wyloguj z panelu IT</button>
+      <button id="btnPokazZmianeHaslaAdmin" type="button" class="btn btn-outline btn-small" style="margin-top:10px;">Zmień hasło</button>
+
+      <div id="zmianaHaslaAdminPanel" class="panel hidden" style="max-width:420px; margin-top:14px;">
+  <h3>Zmień hasło</h3>
+  <form id="formHasloAdmin" onsubmit="event.preventDefault(); document.getElementById('btnZmienHasloAdmin').click();">
+    <div class="field">
+      <label for="zh_a_obecne">Obecne hasło</label>
+      <input type="password" id="zh_a_obecne" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="zh_a_nowe">Nowe hasło (min. 8 znaków, duża litera, cyfra)</label>
+      <input type="password" id="zh_a_nowe" minlength="8" autocomplete="new-password" required>
+      <div id="zh_a_sila_pasek" style="height:4px; width:0%; background:#e0e0e0; margin-top:6px; border-radius:2px; transition:0.3s;"></div>
+      <small id="zh_a_sila_tekst" style="font-size:11.5px; color:var(--steel); display:block; margin-top:3px;"></small>
+    </div>
+    <div class="field">
+      <label for="zh_a_powtorz">Powtórz nowe hasło</label>
+      <input type="password" id="zh_a_powtorz" minlength="8" autocomplete="new-password" required>
+    </div>
+    <div id="zh_a_blad" class="alert alert-danger hidden"></div>
+    <button id="btnZmienHasloAdmin" type="submit" class="btn btn-primary btn-small">Zapisz nowe hasło</button>
+  </form>
+</div>
+  </section>
+
+</main>
+
+<footer class="foot">Ewidencja IT — System ewidencji i rezerwacji sprzętu. Dział IT.</footer>
+<div id="toast" class="toast"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
